@@ -1,6 +1,6 @@
 module.exports = {
   darkMode: "class",
-  purge: ["./src/**/*.js"],
-  variants: {},
+  content: ["./src/**/*.js"],
+  theme: { extend: {} },
   plugins: [],
 };
