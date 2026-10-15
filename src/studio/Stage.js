@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { SPRITE_SIZE, STAGE_H, STAGE_W } from './engine';
 
 export function Cat({ hue }) {
@@ -42,9 +43,38 @@ function Bubble({ bubble }) {
   );
 }
 
-export default function Stage({ sprites, actors, selectedId, toast }) {
+export default function Stage({ sprites, actors, selectedId, toast, onSelect, onDrag, onDragEnd }) {
+  const stageRef = useRef(null);
+  const grab = useRef(null); // { id, dx, dy }: where inside the sprite the pointer took hold
+
+  // Pointer position -> stage coordinates (origin at the centre, y up)
+  const toStage = (e) => {
+    const r = stageRef.current.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * STAGE_W - STAGE_W / 2,
+      y: STAGE_H / 2 - ((e.clientY - r.top) / r.height) * STAGE_H,
+    };
+  };
+  const startDrag = (e, id, a) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const p = toStage(e);
+    grab.current = { id, dx: a.x - p.x, dy: a.y - p.y };
+    onSelect(id);
+  };
+  const moveDrag = (e) => {
+    if (!grab.current) return;
+    const p = toStage(e);
+    onDrag(grab.current.id, p.x + grab.current.dx, p.y + grab.current.dy);
+  };
+  const endDrag = () => {
+    if (!grab.current) return;
+    onDragEnd(grab.current.id);
+    grab.current = null;
+  };
+
   return (
     <div
+      ref={stageRef}
       className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-300 bg-white"
       role="img"
       aria-label="Stage"
@@ -57,7 +87,11 @@ export default function Stage({ sprites, actors, selectedId, toast }) {
         return (
           <div
             key={s.id}
-            className="absolute"
+            className="absolute cursor-grab touch-none active:cursor-grabbing"
+            onPointerDown={(e) => startDrag(e, s.id, a)}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
             style={{
               left: `${((a.x + STAGE_W / 2) / STAGE_W) * 100}%`,
               top: `${((STAGE_H / 2 - a.y) / STAGE_H) * 100}%`,

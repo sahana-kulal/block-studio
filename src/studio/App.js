@@ -5,7 +5,15 @@ import Stage from './Stage';
 import SpritePanel from './SpritePanel';
 import { makeBlock } from './blocks';
 import { addBlock, moveStack, removeStack, updateParams } from './scriptOps';
-import { advance, createRuntime, detectCollisions, isDone, swapAnimations } from './engine';
+import {
+  advance,
+  clampX,
+  clampY,
+  createRuntime,
+  detectCollisions,
+  isDone,
+  swapAnimations,
+} from './engine';
 
 const HUES = [28, 205, 145, 330, 262, 8];
 const SPAWNS = [[-120, 0], [120, 0], [0, 100], [0, -100], [-170, 90], [170, -90]];
@@ -34,6 +42,7 @@ export default function App() {
   const runtimes = useRef({});
   const touching = useRef(new Set());
   const startPositions = useRef(null);
+  const dragging = useRef(new Set()); // sprites being held by the mouse; the animation pauses for them
   const nextN = useRef(2);
   const toastTimer = useRef(null);
   const originals = useRef({}); // scripts as the user wrote them, before any collision swap
@@ -107,6 +116,14 @@ export default function App() {
     if (selectedId === id) setSelectedId(rest[0].id);
   };
 
+  // Dragging a sprite on the stage. A running block restarts from the drop point.
+  const dragSprite = (id, x, y) => {
+    dragging.current.add(id);
+    if (runtimes.current[id]) runtimes.current[id].cur = null;
+    setActorState((all) => ({ ...all, [id]: { ...all[id], x: clampX(x), y: clampY(y) } }));
+  };
+  const dropSprite = (id) => dragging.current.delete(id);
+
   // ---- playback ----
   const clearBubbles = () =>
     setActorState((a) =>
@@ -174,10 +191,12 @@ export default function App() {
       const now = performance.now();
       const ids = Object.keys(runtimes.current).filter((id) => actorsRef.current[id]);
       const next = { ...actorsRef.current };
-      for (const id of ids) next[id] = advance(next[id], runtimes.current[id], now);
+      for (const id of ids) {
+        if (!dragging.current.has(id)) next[id] = advance(next[id], runtimes.current[id], now);
+      }
 
       for (const [a, b] of detectCollisions(ids, next, touching.current)) {
-        swapAnimations(runtimes.current[a], runtimes.current[b], now);
+        swapAnimations(runtimes.current[a], runtimes.current[b]);
         swapShownScripts(a, b);
         const name = (id) => spritesRef.current.find((s) => s.id === id)?.name ?? id;
         showToast(`${name(a)} and ${name(b)} collided: animations swapped`);
@@ -243,7 +262,15 @@ export default function App() {
               Reset positions
             </button>
           </div>
-          <Stage sprites={sprites} actors={actors} selectedId={selected.id} toast={toast} />
+          <Stage
+            sprites={sprites}
+            actors={actors}
+            selectedId={selected.id}
+            toast={toast}
+            onSelect={setSelectedId}
+            onDrag={dragSprite}
+            onDragEnd={dropSprite}
+          />
           <SpritePanel
             sprites={sprites}
             actors={actors}

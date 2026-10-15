@@ -14,7 +14,7 @@ export const BLOCK_DEFS = {
   goto: { cat: 'motion', defaults: { x: '0', y: '0' } },
   say: { cat: 'looks', defaults: { text: 'Hello!', secs: '2' } },
   think: { cat: 'looks', defaults: { text: 'Hmm...', secs: '2' } },
-  repeat: { cat: 'control', defaults: { times: '' } },
+  repeat: { cat: 'control', defaults: { times: '10' } },
 };
 
 export const PALETTE = {
